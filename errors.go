@@ -1,6 +1,9 @@
 package gophercloud
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // BaseError is an error type that all other error types embed.
 type BaseError struct {
@@ -102,9 +105,26 @@ type ErrDefault503 struct {
 	ErrUnexpectedResponseCode
 }
 
-func (e ErrDefault400) Error() string {
-	return "Invalid request due to incorrect syntax or missing required parameters."
+type BadRequestBody struct {
+	BadRequest struct {
+		Message string `json:"message"`
+		Code    int    `json:"code"`
+	} `json:"badRequest"`
 }
+
+func (e ErrDefault400) Error() string {
+	if string(e.Body) != "" {
+		body := new(BadRequestBody)
+		err := json.Unmarshal(e.Body, body)
+		if err != nil {
+			return fmt.Sprintf("%s", err)
+		}
+		return body.BadRequest.Message
+	} else {
+		return "Invalid request due to incorrect syntax or missing required parameters."
+	}
+}
+
 func (e ErrDefault401) Error() string {
 	return "Authentication failed"
 }
